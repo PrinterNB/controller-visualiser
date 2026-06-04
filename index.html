@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Gamepad Visualizer</title>
+  <title>Controller Visualizer</title>
   <style>
     :root{
       --bg:#0f1720; --card:#0b1220; --muted:#94a3b8; --accent-x:#22c1ff; --accent-y:#7cff88; --trigger:#ffb86b; --btn:#203040; --btn-on:#ffd166;
@@ -86,14 +86,14 @@
     .face-btn-x{left:8px;top:50%;transform:translateY(-50%)}
     .face-btn.pressed{background:var(--trigger);color:#001;box-shadow:0 14px 36px rgba(255,170,60,0.18);filter:brightness(1.08)}
 
-    /* D-Pad */
-    .dpad{position:relative;width:120px;height:120px}
-      .dp-btn{position:absolute;width:48px;height:48px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:var(--btn);color:var(--muted);border:1px solid rgba(255,255,255,0.04);transition:all 0.06s}
-      .dp-up{left:50%;top:12px;transform:translateX(-50%)}
-      .dp-down{left:50%;bottom:12px;transform:translateX(-50%)}
-      .dp-left{left:12px;top:50%;transform:translateY(-50%)}
-      .dp-right{right:12px;top:50%;transform:translateY(-50%)}
-      .dp-btn.pressed{background:var(--trigger);color:#001;box-shadow:0 14px 36px rgba(255,170,60,0.18);filter:brightness(1.08)}
+    /* D-Pad (unified) */
+    .dpad{position:relative;width:160px;height:160px}
+    .dp-btn, .dpad-btn{position:absolute;width:48px;height:48px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:var(--btn);color:var(--muted);border:1px solid rgba(255,255,255,0.04);transition:background 0.06s,box-shadow 0.06s}
+    .dp-up, .dpad-btn.up{left:50%;top:12px;transform:translateX(-50%)}
+    .dp-down, .dpad-btn.down{left:50%;bottom:12px;transform:translateX(-50%)}
+    .dp-left, .dpad-btn.left{left:12px;top:50%;transform:translateY(-50%)}
+    .dp-right, .dpad-btn.right{right:12px;top:50%;transform:translateY(-50%)}
+    .dp-btn.pressed, .dpad-btn.pressed{background:var(--trigger);color:#001;box-shadow:0 14px 36px rgba(255,170,60,0.18);filter:brightness(1.08)}
 
     /* Joystick glow when moved */
     .knob.glow{box-shadow:0 12px 30px rgba(34,211,153,0.25),0 8px 18px rgba(0,0,0,0.6),inset 0 2px 6px rgba(255,255,255,0.6)}
@@ -104,13 +104,7 @@
     .face-buttons{position:relative;width:180px;height:180px}
     .face-btn{position:absolute;width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;box-shadow:0 8px 18px rgba(0,0,0,0.6);transition:box-shadow 0.06s,background 0.06s}
 
-    .dpad{position:relative;width:160px;height:160px}
-    .dpad-btn{position:absolute;width:48px;height:48px;border-radius:8px;background:rgba(255,255,255,0.02);display:flex;align-items:center;justify-content:center;color:var(--muted);transition:background 0.06s,box-shadow 0.06s}
-    .dpad-btn.up{top:12px;left:50%;transform:translateX(-50%)}
-    .dpad-btn.down{bottom:12px;left:50%;transform:translateX(-50%)}
-    .dpad-btn.left{left:12px;top:50%;transform:translateY(-50%)}
-    .dpad-btn.right{right:12px;top:50%;transform:translateY(-50%)}
-    .dpad-btn.pressed{background:var(--trigger);color:#001;box-shadow:0 14px 36px rgba(255,170,60,0.18);filter:brightness(1.08)}
+    /* (duplicate dpad rules removed - consolidated earlier) */
 
     .center-controls{display:flex;flex-direction:column;gap:8px;align-items:center}
     .small-btn{width:68px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.02);color:var(--muted);font-size:12px;transition:all 0.06s}
@@ -127,7 +121,7 @@
   <div class="wrap">
     <header>
       <div>
-        <h1>Gamepad Visualizer</h1>
+        <h1>Controller Visualizer</h1>
         <div class="muted">Visualizes axes, triggers, and buttons via the Gamepad API</div>
       </div>
       <div class="controls">

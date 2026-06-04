@@ -1,6 +1,6 @@
-# Gamepad Visualizer
+# Controller Visualizer
 
-A single-file HTML visualizer that shows axes, triggers, bumpers, sticks and buttons for connected game controllers using the browser Gamepad API.
+A single-file HTML visualizer that shows axes, triggers, bumpers, sticks and buttons for connected controllers using the browser Gamepad API.
 
 Live demo: https://controller.parkerbrown.photos
 
