@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Gamepad Visualizer</title>
+  <style>
+    :root{
+      --bg:#0f1720; --card:#0b1220; --muted:#94a3b8; --accent-x:#22c1ff; --accent-y:#7cff88; --trigger:#ffb86b; --btn:#203040; --btn-on:#ffd166;
+      --glass: rgba(255,255,255,0.02);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,#071021 0%, #071827 100%);color:#e6eef8}
+    .wrap{max-width:1000px;margin:28px auto;padding:20px;}
+
+    header{display:flex;gap:16px;align-items:center;justify-content:space-between}
+    h1{font-size:18px;margin:0}
+    .controls{display:flex;gap:12px;align-items:center}
+    select{background:var(--card);border:1px solid rgba(255,255,255,0.04);color:var(--muted);padding:8px 10px;border-radius:8px}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border:1px solid rgba(255,255,255,0.03);padding:16px;border-radius:12px;margin-top:16px}
+
+    .grid{display:grid;grid-template-columns:1fr 320px;gap:18px}
+
+    /* Sticks + triggers area */
+    .vis{display:flex;flex-direction:column;gap:14px}
+    .sticks{display:flex;gap:14px;align-items:center}
+    .stick{background:var(--glass);padding:12px;border-radius:10px;flex:1;min-width:0}
+    .stick h3{margin:0 0 8px 0;font-size:13px;color:var(--muted)}
+
+    .axis-row{display:flex;gap:12px;align-items:center}
+    .axis-label{width:72px;font-size:12px;color:var(--muted)}
+
+    .track{position:relative;background:rgba(255,255,255,0.03);border-radius:6px;height:18px;flex:1;overflow:hidden}
+    .track.vertical{width:40px;height:140px}
+    .center-line{position:absolute;inset:0;pointer-events:none}
+    .center-line::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:1px;background:rgba(255,255,255,0.06);transform:translateX(-50%)}
+    .center-line.vertical::before{left:0;top:50%;width:100%;height:1px;transform:translateY(-50%);background:rgba(255,255,255,0.06)}
+
+    .fill{position:absolute;background:var(--accent-x);transition:width 0.03s linear, height 0.03s linear}
+    .fill.x.pos{left:50%;transform-origin:left center;background:var(--accent-x)}
+    .fill.x.neg{right:50%;transform-origin:right center;background:rgba(34,193,255,0.45)}
+    .fill.y.pos{top:50%;transform-origin:top center;background:var(--accent-y)}
+    .fill.y.neg{bottom:50%;transform-origin:bottom center;background:rgba(124,255,136,0.35)}
+
+    /* Triggers */
+    .side{display:flex;flex-direction:column;gap:12px}
+    .trigger{display:flex;gap:8px;align-items:center;background:var(--glass);padding:10px;border-radius:10px}
+    .trigger .label{width:36px;font-size:12px;color:var(--muted)}
+    .trigger .t-track{position:relative;width:28px;height:120px;background:rgba(255,255,255,0.03);border-radius:8px;overflow:hidden}
+    .trigger .t-fill{position:absolute;left:0;right:0;bottom:0;height:0;background:var(--trigger);transition:height 0.01s linear}
+
+    /* Buttons */
+    .panel-right{display:flex;flex-direction:column;gap:14px}
+    .buttons{display:grid;grid-template-columns:repeat(6,48px);gap:8px}
+    .btn{width:48px;height:40px;background:var(--btn);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;border:1px solid rgba(255,255,255,0.03);transition:all 0.08s}
+    .btn.pressed{background:var(--trigger);color:#001;box-shadow:0 10px 28px rgba(255,170,60,0.16)}
+
+    .muted{color:var(--muted);font-size:13px}
+
+    /* Joystick 3D-style visuals */
+    .joystick{width:132px;height:132px;border-radius:50%;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(0,0,0,0.12));display:flex;align-items:center;justify-content:center;box-shadow:inset 0 -10px 18px rgba(0,0,0,0.6),0 8px 22px rgba(0,0,0,0.6);position:relative;transform-style:preserve-3d}
+    .joystick-base{width:100%;height:100%;display:flex;align-items:center;justify-content:center;border-radius:50%;position:relative;overflow:visible}
+    .knob{width:48px;height:48px;border-radius:50%;background:linear-gradient(180deg,#ffffff,#d6e7ff);box-shadow:0 8px 18px rgba(0,0,0,0.55), inset 0 2px 6px rgba(255,255,255,0.6);transform:translate3d(0,0,12px);transition:transform 0.02s linear}
+    .axis-value{min-width:48px;text-align:center;color:var(--muted);font-size:13px}
+
+    /* Controller body layout */
+    .controller{width:100%;height:340px;border-radius:32px;background:linear-gradient(180deg,rgba(255,255,255,0.01),rgba(0,0,0,0.18));position:relative;padding:22px;box-shadow:0 12px 30px rgba(0,0,0,0.6);overflow:hidden}
+    .controller-body{display:flex;align-items:flex-start;justify-content:space-between;height:100%;gap:18px}
+    .left-area,.right-area{display:flex;flex-direction:column;align-items:center;gap:14px;width:260px}
+    .center-area{flex:1;display:flex;align-items:center;justify-content:center}
+    .face-buttons{width:180px;height:180px;display:flex;align-items:center;justify-content:center}
+    .controller .buttons{display:grid;grid-template-columns:repeat(2,68px);gap:12px}
+    .bumper{position:absolute;top:8px;padding:6px 10px;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.03);color:var(--muted);font-weight:600;transition:all 0.06s}
+    .bumper.pressed{background:var(--trigger);color:#001;box-shadow:0 14px 36px rgba(255,170,60,0.18);filter:brightness(1.08)}
+    #lb{left:18px}
+    #rb{right:18px}
+    #lt{left:28px}
+    #rt{right:28px}
+
+    /* Face buttons (A/B/X/Y) located on the controller face */
+    .face-buttons{position:relative;width:180px;height:180px;margin-top:8px}
+    .face-btn{position:absolute;width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;background:var(--btn);color:var(--muted);border:1px solid rgba(255,255,255,0.04);transition:box-shadow 0.06s,background 0.06s}
+    .face-btn-y{top:8px;left:50%;transform:translateX(-50%)}
+    .face-btn-a{bottom:8px;left:50%;transform:translateX(-50%)}
+    .face-btn-b{right:8px;top:50%;transform:translateY(-50%)}
+    .face-btn-x{left:8px;top:50%;transform:translateY(-50%)}
+    .face-btn.pressed{background:var(--trigger);color:#001;box-shadow:0 14px 36px rgba(255,170,60,0.18);filter:brightness(1.08)}
+
+    /* D-Pad */
+    .dpad{position:relative;width:120px;height:120px}
+      .dp-btn{position:absolute;width:48px;height:48px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:var(--btn);color:var(--muted);border:1px solid rgba(255,255,255,0.04);transition:all 0.06s}
+      .dp-up{left:50%;top:12px;transform:translateX(-50%)}
+      .dp-down{left:50%;bottom:12px;transform:translateX(-50%)}
+      .dp-left{left:12px;top:50%;transform:translateY(-50%)}
+      .dp-right{right:12px;top:50%;transform:translateY(-50%)}
+      .dp-btn.pressed{background:var(--trigger);color:#001;box-shadow:0 14px 36px rgba(255,170,60,0.18);filter:brightness(1.08)}
+
+    /* Joystick glow when moved */
+    .knob.glow{box-shadow:0 12px 30px rgba(34,211,153,0.25),0 8px 18px rgba(0,0,0,0.6),inset 0 2px 6px rgba(255,255,255,0.6)}
+    /* Joystick click: change knob to orange/yellow */
+    .knob.stick-pressed{background:linear-gradient(180deg,#fff6e6,#ffd166);box-shadow:0 12px 30px rgba(255,170,60,0.18),0 8px 18px rgba(0,0,0,0.6),inset 0 2px 6px rgba(255,255,255,0.6);border:1px solid rgba(255,209,102,0.25);filter:brightness(1.02)}
+
+    /* Face buttons and D-pad visuals */
+    .face-buttons{position:relative;width:180px;height:180px}
+    .face-btn{position:absolute;width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;box-shadow:0 8px 18px rgba(0,0,0,0.6);transition:box-shadow 0.06s,background 0.06s}
+
+    .dpad{position:relative;width:160px;height:160px}
+    .dpad-btn{position:absolute;width:48px;height:48px;border-radius:8px;background:rgba(255,255,255,0.02);display:flex;align-items:center;justify-content:center;color:var(--muted);transition:background 0.06s,box-shadow 0.06s}
+    .dpad-btn.up{top:12px;left:50%;transform:translateX(-50%)}
+    .dpad-btn.down{bottom:12px;left:50%;transform:translateX(-50%)}
+    .dpad-btn.left{left:12px;top:50%;transform:translateY(-50%)}
+    .dpad-btn.right{right:12px;top:50%;transform:translateY(-50%)}
+    .dpad-btn.pressed{background:var(--trigger);color:#001;box-shadow:0 14px 36px rgba(255,170,60,0.18);filter:brightness(1.08)}
+
+    .center-controls{display:flex;flex-direction:column;gap:8px;align-items:center}
+    .small-btn{width:68px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.02);color:var(--muted);font-size:12px;transition:all 0.06s}
+    .small-btn.pressed{background:var(--trigger);color:#001}
+
+    .joystick.active .knob{box-shadow:0 12px 28px rgba(34,193,255,0.2),0 0 18px rgba(34,193,255,0.06)}
+    .knob.pressed{box-shadow:0 8px 18px rgba(0,0,0,0.55),0 0 18px rgba(255,209,102,0.12);border:2px solid rgba(255,209,102,0.18)}
+
+    footer{margin-top:12px;color:var(--muted);font-size:13px}
+    @media (max-width:850px){.grid{grid-template-columns:1fr;}.buttons{grid-template-columns:repeat(5,48px)}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Gamepad Visualizer</h1>
+        <div class="muted">Visualizes axes, triggers, and buttons via the Gamepad API</div>
+      </div>
+      <div class="controls">
+        <label class="muted" for="gamepadSelect">Select controller</label>
+        <select id="gamepadSelect"><option value="-1">No controller</option></select>
+      </div>
+    </header>
+
+    <div class="card">
+      <div class="grid">
+        <div class="vis">
+          <div class="muted" id="selectedName">No controller selected</div>
+          <div class="controller" role="region" aria-label="Controller visualization">
+            <div class="bumper" id="lb">LB</div>
+            <div class="trigger" id="lt" style="position:absolute;top:56px;">
+              <div class="t-track"><div class="t-fill" style="height:0%"></div></div>
+            </div>
+
+            <div class="controller-body">
+              <div class="left-area">
+                <div class="joystick" id="leftJoystick" aria-hidden="true">
+                  <div class="joystick-base"><div class="knob" id="leftKnob"></div></div>
+                </div>
+                <div class="dpad" id="dpad" aria-hidden="true">
+                  <div class="dp-btn dp-up" data-d="up">˄</div>
+                  <div class="dp-btn dp-down" data-d="down">˅</div>
+                  <div class="dp-btn dp-left" data-d="left">‹</div>
+                  <div class="dp-btn dp-right" data-d="right">›</div>
+                </div>
+              </div>
+
+              <div class="center-area" aria-hidden="true"></div>
+
+              <div class="right-area">
+                <div class="joystick" id="rightJoystick" aria-hidden="true">
+                  <div class="joystick-base"><div class="knob" id="rightKnob"></div></div>
+                </div>
+                <div class="face-buttons" aria-hidden="true">
+                  <div class="face-btn face-btn-y" data-btn="3">Y</div>
+                  <div class="face-btn face-btn-b" data-btn="1">B</div>
+                  <div class="face-btn face-btn-x" data-btn="2">X</div>
+                  <div class="face-btn face-btn-a" data-btn="0">A</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="trigger" id="rt" style="position:absolute;top:56px;">
+              <div class="t-track"><div class="t-fill" style="height:0%"></div></div>
+            </div>
+            <div class="bumper" id="rb">RB</div>
+          </div>
+        </div>
+
+        
+      </div>
+
+      <footer id="footer">Waiting for controllers...</footer>
+    </div>
+  </div>
+
+  <script>
+    // Simple mapping for common button names
+    const BUTTON_NAMES = [
+      'A', 'B', 'X', 'Y', 'LB', 'RB', 'LT', 'RT', 'Back', 'Start', 'LS', 'RS', 'DUp', 'DDown', 'DLeft', 'DRight', 'Home'
+    ];
+
+    const select = document.getElementById('gamepadSelect');
+    const selectedName = document.getElementById('selectedName');
+    const footer = document.getElementById('footer');
+
+    const leftKnob = document.getElementById('leftKnob');
+    const rightKnob = document.getElementById('rightKnob');
+    const lxDisplay = document.getElementById('lxVal');
+    const lyDisplay = document.getElementById('lyVal');
+    const rxDisplay = document.getElementById('rxVal');
+    const ryDisplay = document.getElementById('ryVal');
+    const ltFill = document.querySelector('#lt .t-fill');
+    const rtFill = document.querySelector('#rt .t-fill');
+    const buttonsContainer = document.getElementById('buttons');
+    const bumperL = document.getElementById('lb');
+    const bumperR = document.getElementById('rb');
+    // rawInfo removed; no DOM element needed
+
+    let selectedIndex = -1;
+
+    const smoothed = { lx:0, ly:0, rx:0, ry:0, lt:0, rt:0 };
+    const SMOOTH = 0.6; // higher => less smoothing (closer to raw input)
+    const TRIG_SMOOTH = 0.92; // triggers update quicker (closer to raw)
+    function lerp(a,b,t){return a+(b-a)*t}
+
+    function updateGamepadList(){
+      const gps = navigator.getGamepads ? Array.from(navigator.getGamepads()).filter(Boolean) : [];
+      const prev = select.value;
+      // clear
+      select.innerHTML = '';
+      if(!gps.length){
+        const opt = document.createElement('option'); opt.value = -1; opt.textContent = 'No controller'; select.appendChild(opt);
+        selectedIndex = -1; selectedName.textContent = 'No controller selected'; footer.textContent = 'No gamepads connected.'; renderButtons([]);
+        return;
+      }
+      gps.forEach(gp => {
+        const opt = document.createElement('option');
+        opt.value = gp.index; opt.textContent = `${gp.id} [#${gp.index}]`;
+        select.appendChild(opt);
+      });
+      // restore selection if possible
+      if(prev && Array.from(select.options).some(o => o.value === prev)) select.value = prev;
+      else select.value = gps[0].index;
+      selectedIndex = Number(select.value);
+      const gp = navigator.getGamepads()[selectedIndex];
+      selectedName.textContent = gp ? gp.id : 'No controller selected';
+      footer.textContent = gp ? 'Polling ' + gp.id : 'Ready';
+      if(gp) renderButtons(gp.buttons);
+    }
+
+    function renderButtons(buttons){
+      // keep the old raw buttons container for compatibility, but we mainly use the face buttons and dpad
+      if(!buttonsContainer) return; // nothing to render if the legacy container was removed
+      buttonsContainer.innerHTML='';
+      for(let i=0;i<(buttons?buttons.length:0);i++){
+        const b = document.createElement('div'); b.className = 'btn';
+        const name = BUTTON_NAMES[i] || i;
+        b.textContent = name;
+        b.dataset.index = i;
+        buttonsContainer.appendChild(b);
+      }
+    }
+
+    function updateJoystickFromAxes(axes, offset, knobEl, xDisp, yDisp, keyPrefix){
+      const rawX = axes[offset] ?? 0;
+      const rawY = axes[offset+1] ?? 0;
+      const sx = keyPrefix+'x', sy = keyPrefix+'y';
+      smoothed[sx] = lerp(smoothed[sx]||0, rawX, SMOOTH);
+      smoothed[sy] = lerp(smoothed[sy]||0, rawY, SMOOTH);
+      if(!knobEl) return;
+      const joystickEl = knobEl.closest('.joystick');
+      const baseRect = joystickEl ? joystickEl.getBoundingClientRect() : {width:120,height:120};
+      const knobRect = knobEl.getBoundingClientRect();
+      const maxX = (baseRect.width - knobRect.width)/2;
+      const maxY = (baseRect.height - knobRect.height)/2;
+      const tx = Math.round(smoothed[sx] * maxX);
+      const ty = Math.round(smoothed[sy] * maxY);
+      const rotX = smoothed[sy] * -15;
+      const rotY = smoothed[sx] * 15;
+      knobEl.style.transform = `translate3d(${tx}px, ${ty}px, 10px) rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+      if(xDisp) xDisp.textContent = smoothed[sx].toFixed(2);
+      if(yDisp) yDisp.textContent = smoothed[sy].toFixed(2);
+    }
+
+    function setJoystickCenter(knobEl, xDisp, yDisp, keyPrefix){
+      const sx = keyPrefix+'x', sy = keyPrefix+'y';
+      smoothed[sx] = lerp(smoothed[sx]||0, 0, SMOOTH);
+      smoothed[sy] = lerp(smoothed[sy]||0, 0, SMOOTH);
+      if(knobEl) knobEl.style.transform = `translate3d(0px, 0px, 10px) rotateX(0deg) rotateY(0deg)`;
+      if(xDisp) xDisp.textContent = smoothed[sx].toFixed(2);
+      if(yDisp) yDisp.textContent = smoothed[sy].toFixed(2);
+    }
+
+    function update(){
+      const gp = navigator.getGamepads ? navigator.getGamepads()[selectedIndex] : null;
+      if(gp){
+        footer.textContent = `Polling ${gp.id}`;
+        const axes = gp.axes || [];
+        const buttons = gp.buttons || [];
+
+        // Left stick
+        if(axes.length>=2) {
+          updateJoystickFromAxes(axes, 0, leftKnob, lxDisplay, lyDisplay, 'l');
+          // glow knob when moved
+          const moved = Math.abs(axes[0])>0.08 || Math.abs(axes[1])>0.08;
+          leftKnob.classList.toggle('glow', moved);
+          leftKnob.classList.toggle('pressed', moved);
+          leftKnob.closest('.joystick')?.classList.toggle('active', moved);
+        } else setJoystickCenter(leftKnob, lxDisplay, lyDisplay, 'l');
+
+        // Right stick
+        if(axes.length>=4) {
+          updateJoystickFromAxes(axes, 2, rightKnob, rxDisplay, ryDisplay, 'r');
+          const movedR = Math.abs(axes[2])>0.08 || Math.abs(axes[3])>0.08;
+          rightKnob.classList.toggle('glow', movedR);
+          rightKnob.classList.toggle('pressed', movedR);
+          rightKnob.closest('.joystick')?.classList.toggle('active', movedR);
+        } else setJoystickCenter(rightKnob, rxDisplay, ryDisplay, 'r');
+
+        // Triggers: try buttons 6/7, else axes depending on layout
+        let lt = 0, rt = 0;
+        if(buttons[6]) lt = buttons[6].value ?? (buttons[6].pressed?1:0);
+        if(buttons[7]) rt = buttons[7].value ?? (buttons[7].pressed?1:0);
+        if(!buttons[6] && axes.length>=3){ lt = (axes[2]+1)/2; }
+        if(!buttons[7] && axes.length>=4){ rt = (axes[3]+1)/2; }
+        smoothed.lt = lerp(smoothed.lt||0, lt, TRIG_SMOOTH);
+        smoothed.rt = lerp(smoothed.rt||0, rt, TRIG_SMOOTH);
+        ltFill.style.height = Math.round(smoothed.lt*100) + '%';
+        rtFill.style.height = Math.round(smoothed.rt*100) + '%';
+
+        // Buttons - update old-style list (guard if legacy container exists)
+        if(buttonsContainer){
+          for(let i=0;i<buttons.length;i++){
+            const el = buttonsContainer.querySelector(`.btn[data-index='${i}']`);
+            if(!el) continue;
+            const pressed = !!buttons[i]?.pressed || (buttons[i]?.value>0.5);
+            el.classList.toggle('pressed', pressed);
+          }
+        }
+        // Face buttons (A=0,B=1,X=2,Y=3) glow when pressed
+        const faceMap = {0:'.face-btn-a',1:'.face-btn-b',2:'.face-btn-x',3:'.face-btn-y'};
+        Object.keys(faceMap).forEach(idx=>{
+          const sel = document.querySelector(faceMap[idx]);
+          if(!sel) return;
+          const pressed = !!buttons[idx]?.pressed || (buttons[idx]?.value>0.5);
+          sel.classList.toggle('pressed', pressed);
+        });
+        // D-pad mapping (12-15 in standard mapping)
+        const dUp = document.querySelector('.dp-up');
+        const dDown = document.querySelector('.dp-down');
+        const dLeft = document.querySelector('.dp-left');
+        const dRight = document.querySelector('.dp-right');
+        dUp && dUp.classList.toggle('pressed', !!buttons[12]?.pressed);
+        dDown && dDown.classList.toggle('pressed', !!buttons[13]?.pressed);
+        dLeft && dLeft.classList.toggle('pressed', !!buttons[14]?.pressed);
+        dRight && dRight.classList.toggle('pressed', !!buttons[15]?.pressed);
+        // Bumpers (LB=4, RB=5)
+        if(bumperL) bumperL.classList.toggle('pressed', !!buttons[4]?.pressed || (buttons[4]?.value>0.5));
+        if(bumperR) bumperR.classList.toggle('pressed', !!buttons[5]?.pressed || (buttons[5]?.value>0.5));
+        // Stick buttons (LS=10, RS=11) - change knob color when clicked
+        const lsPressed = !!buttons[10]?.pressed || (buttons[10]?.value>0.5);
+        const rsPressed = !!buttons[11]?.pressed || (buttons[11]?.value>0.5);
+        if(leftKnob) leftKnob.classList.toggle('stick-pressed', lsPressed);
+        if(rightKnob) rightKnob.classList.toggle('stick-pressed', rsPressed);
+        // raw info removed
+      }
+      requestAnimationFrame(update);
+    }
+
+    
+
+    // Events
+    window.addEventListener('gamepadconnected', (e)=>{
+      footer.textContent = `Gamepad connected: ${e.gamepad.id}`;
+      updateGamepadList();
+    });
+    window.addEventListener('gamepaddisconnected', (e)=>{
+      footer.textContent = `Gamepad disconnected`;
+      updateGamepadList();
+    });
+
+    // Poll for changes to list (some browsers don't fire events reliably). Poll once per second for list updates.
+    setInterval(()=>{
+      const gps = navigator.getGamepads ? Array.from(navigator.getGamepads()).filter(Boolean) : [];
+      const has = gps.length>0;
+      if(!has && select.options.length>1) updateGamepadList();
+      // if there is at least one and select is empty, populate
+      if(has && select.options.length<=1) updateGamepadList();
+    }, 1000);
+
+    select.addEventListener('change',(e)=>{
+      selectedIndex = Number(select.value);
+      const gp = navigator.getGamepads ? navigator.getGamepads()[selectedIndex] : null;
+      selectedName.textContent = gp ? gp.id : 'No controller selected';
+      if(gp) renderButtons(gp.buttons);
+    });
+
+    // initial population
+    updateGamepadList();
+    requestAnimationFrame(update);
+  </script>
+</body>
+</html>
