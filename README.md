@@ -3,7 +3,6 @@
 A single-file HTML visualizer that shows axes, triggers, bumpers, sticks and buttons for connected controllers using the browser Gamepad API.
 
 Live demo: https://controller.parkerbrown.photos
-*The controller dropdown takes a minute to populate on the live demo.
 
 ## Requirements
 ## Requirements
